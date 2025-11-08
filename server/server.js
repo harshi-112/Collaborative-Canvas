@@ -1,5 +1,6 @@
 const express = require('express');
 const http = require('http');
+const os = require('os');
 const { Server } = require('socket.io');
 const Rooms = require('./rooms');
 
@@ -9,6 +10,16 @@ const io = new Server(server);
 const rooms = new Rooms();
 
 app.use(express.static(__dirname + '/../client'));
+
+function getLocalExternalIp() {
+    const ifaces = os.networkInterfaces();
+    for (const name of Object.keys(ifaces)) {
+        for (const iface of ifaces[name]) {
+            if (iface.family === 'IPv4' && !iface.internal) return iface.address;
+        }
+    }
+    return null;
+}
 
 io.on('connection', (socket)=>{
   console.log('conn', socket.id);
@@ -61,6 +72,13 @@ io.on('connection', (socket)=>{
   });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, ()=> console.log('listening', PORT));
+const port = process.env.PORT || 3000;
+
+server.listen(port, () => {
+  const addr = server.address();
+  const host = getLocalExternalIp() || 'localhost';
+  console.log(`Server listening:`);
+  console.log(`  Local:   http://localhost:${addr.port}`);
+  console.log(`  Network: http://${host}:${addr.port}`);
+});
 
