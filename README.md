@@ -126,9 +126,15 @@ collaborative-canvas/
 
 ## Time spent on the project ⏱️
 
-- Development & docs: approximately 16–24 hours (replace with your exact time if needed)
-- Time spent: <REPLACE_WITH_TIME_SPENT> (e.g., 18 hours)
+- Planning & Research: 6–8 hours
 
+- Development (coding, debugging, feature implementation): 25–30 hours
+
+- UI/UX Design: 4–5 hours
+
+- Documentation & Testing: 5–7 hours
+
+- Total Estimated Time: ~48 hours
 ---
 
 ## Contributing & development notes 🛠️
@@ -138,10 +144,4 @@ collaborative-canvas/
 
 ---
 
-## License & attribution 📜
-
-- Built with Node.js, Express and Socket.io.
-- Add a LICENSE file to declare reuse terms.
-
---- 
 
