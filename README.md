@@ -1,116 +1,110 @@
-# Collaborative Canvas — Real-Time Multi-User Drawing App
+# Collaborative Canvas — Real-Time Multi-User Drawing App 🎨🕸️
 
-[Live demo (production)](https://collaborative-canvas-production-ba6b.up.railway.app) — open the demo to try a deployed instance
-
-A real-time, collaborative drawing canvas built with Node.js, Express and Socket.io. Multiple participants can draw simultaneously and see each other's cursors, colors, and global undo/redo actions in real time.
+A fast, lightweight collaborative drawing canvas built with Node.js, Express and Socket.io. Multiple participants can draw simultaneously and see each other's cursors, colors, and global undo/redo actions in real time.
 
 Quick links
-- Live demo: https://collaborative-canvas-production-ba6b.up.railway.app
 - Local app (after start): http://localhost:3000
+- Repo: (this project)
 
 ---
 
-## Quick Start (minutes)
+## Demo / Try it now ▶️
+
+Check the live production demo to try a deployed instance (recommended for quick sharing with collaborators):
+🔗 https://collaborative-canvas-production-ba6b.up.railway.app
+
+---
+
+## Quick Start — run locally (minutes) 🚀
 
 Requirements
 - Node.js v16+ recommended
 - npm (bundled with Node)
 
-1. Clone and install
+1) Clone & install
 ```bash
 git clone <your-repo-url>
 cd Collaborative-Canvas
 npm install
 ```
 
-2. Start (development / local)
-- Windows (PowerShell / CMD):
+2) Start the server
+- Windows (PowerShell / CMD)
 ```powershell
 set PORT=3000 && npm start
 ```
-- macOS / Linux:
+- macOS / Linux
 ```bash
 PORT=3000 npm start
 ```
 
-3. Open in browser
+3) Open in browser
 - Local: http://localhost:3000
-- Or visit the production demo: https://collaborative-canvas-production-ba6b.up.railway.app
+- The server will also print a LAN URL (e.g. http://192.168.x.x:3000) — use that to let other devices on your network join.
 
-Notes
-- If you omit PORT, the app defaults to 3000.
-- The server prints both localhost and network URLs when it starts (useful for testing from other devices on your LAN).
+Tip: to run on a different port, set PORT before starting.
 
 ---
 
-## How to test with multiple users
+## How to test with multiple users 👥
 
-Recommended quick tests to validate real-time sync and UX:
+Quick ways to simulate multiple participants:
 
-- Open multiple tabs:
-  - Open http://localhost:3000 in two or more tabs in the same browser.
-  - For isolated sessions, use incognito/private windows or different browsers.
+- Multiple tabs: open http://localhost:3000 in two or more tabs.
+- Isolated sessions: use incognito/private windows or different browsers so each tab is a separate user.
+- Cross-device: from another device on the same LAN, open the server's network URL printed at startup (http://<your-machine-ip>:<port>).
+- Online: share the demo link above to test globally.
 
-- Cross-device / network:
-  - From another device on the same network, visit http://<your-machine-ip>:3000 (the server logs this when started).
-  - Or use the live demo URL above to test globally.
-
-- Test checklist:
-  - Draw simultaneously from multiple clients — strokes should appear live on all clients.
-  - Verify per-user cursor labels and colors move in real time.
-  - Change color and stroke width; verify updates propagate.
-  - Use the eraser tool and confirm erasures sync.
-  - Press Global Undo / Redo — these apply across all connected clients.
-  - Reload a client tab — it should request and replay the full canvas state.
+Checklist for testing
+- Draw simultaneously from several clients — strokes should appear live on every client.
+- Observe per-user cursor labels and colors move in real time.
+- Change color / stroke width and ensure updates propagate.
+- Use eraser — confirm erasures sync.
+- Press Global Undo / Redo — confirm actions affect all connected clients.
+- Reload a client — it should request and replay the full canvas state.
 
 Debugging tips
-- Open browser devtools Console to inspect Socket.io logs and debug events.
-- If clients appear desynced, refresh the client to trigger a full state request.
+- Open browser DevTools Console to inspect Socket.io events and logs.
+- If clients look desynced, reload the page to trigger a full_state request.
 
 ---
 
-## Features (high level)
+## Features ✨
 
 - Smooth drawing with mouse & touch
 - Adjustable color and stroke width
 - Eraser tool
-- Real-time synchronization via Socket.io
+- Real-time sync via Socket.io (live cursor + stroke streaming)
 - Per-user cursor labels and colors
 - Global undo / redo
 - Dark-mode UI
 
 ---
 
-## WebSocket & State (short summary)
+## WebSocket & State (summary) 🔁
 
-- Real-time messages: stroke_start, stroke_chunk, stroke_end, cursor updates, undo, redo, request_state, full_state.
-- Server holds an in-memory ordered operation list (ops). Completed strokes become ops that can be toggled removed/restored by global undo/redo.
-- On reconnect or page load clients request full_state and replay ops.
-
----
-
-## Known limitations / bugs
-
-Please read before filing issues — this helps set expectations.
-
-- Global-only Undo/Redo:
-  - Undo/Redo is global (affects everyone) and operates on the server-side linear op history. There is no per-user local undo.
-- No persistence:
-  - State is memory-only. Restarting the server clears the canvas.
-- Not optimized for extremely large histories:
-  - Very long sessions may slow down reconnect replay and redraw performance.
-- Mobile/touch UX:
-  - Touch support exists, but gesture handling and UX may not be fully polished.
-- High-latency artifacts:
-  - Cursor jitter or delayed events possible under poor network conditions.
-- Edge-case reconnection race:
-  - In rare cases reconnecting clients may miss very recent transient updates between save and reconnect.
-
-If you find a reproducible bug, include steps-to-reproduce, browser/OS, and server logs when filing an issue.
+- Key messages: stroke_start, stroke_chunk, stroke_end, cursor, undo, redo, request_state, full_state.
+- Server stores an in-memory ordered op list (ops). Completed strokes become ops; undo/redo toggles op.removed.
+- Clients request full_state on connect/reconnect and replay ops to reconstruct the canvas.
 
 ---
 
-## Project structure
+## Known limitations / bugs ⚠️
+
+Please read before filing issues.
+
+- Global-only Undo/Redo — operations are global (server-side linear history). There is no per-user local undo.
+- No persistence — state is memory-only. Restarting the server clears the canvas.
+- Replay & large histories — very long sessions can slow down reconnect replay and redraw performance.
+- Mobile UX — touch support exists but gestures and polish may be incomplete.
+- High-latency artifacts — cursor jitter or delayed events under poor network conditions.
+- Edge-case reconnection race — in rare cases very recent transient updates may be missed during reconnect.
+
+When filing issues include steps-to-reproduce, browser/OS, and server logs.
+
+---
+
+## Project structure 🗂️
 
 collaborative-canvas/
 - client/
@@ -130,34 +124,24 @@ collaborative-canvas/
 
 ---
 
-## Time spent on the project
+## Time spent on the project ⏱️
 
-- Development & docs: approximately two days (estimate: ~16–24 hours).
-
----
-
-## Demo / Try it now
-
-- Production demo: https://collaborative-canvas-production-ba6b.up.railway.app
-- Run locally and share your machine's LAN URL (the server prints it) to allow teammates/devices to join your local session.
+- Development & docs: approximately 16–24 hours (replace with your exact time if needed)
+- Time spent: <REPLACE_WITH_TIME_SPENT> (e.g., 18 hours)
 
 ---
 
-## Contributing & development notes
+## Contributing & development notes 🛠️
 
-- Want to improve features or fix issues?
-  - Fork the repo, create a branch, make changes, open a PR.
-- Tests:
-  - This prototype currently has no automated test suite; add unit/integration tests as needed.
-- Suggested improvements:
-  - Add persistent storage/snapshots, per-user undo, performance tuning for long sessions, and better mobile UX.
+- Fork → branch → PR. Keep changes focused and include screenshots or short recordings for UI/UX changes.
+- Suggested improvements: add persistence/snapshots, per-user undo, automated tests, mobile UX polish, and bandwidth optimizations.
 
 ---
 
-## License & attribution
+## License & attribution 📜
 
-- Built with Node.js, Express, and Socket.io.
-- Add a LICENSE file to declare terms for reuse.
+- Built with Node.js, Express and Socket.io.
+- Add a LICENSE file to declare reuse terms.
 
----
+--- 
 
