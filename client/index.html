@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Collaborative Canvas — Prototype</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-mark"></span>
+      <div class="brand-copy">
+        <h1>Collaborative Canvas</h1>
+        <p>Lightweight real-time sketch board</p>
+      </div>
+    </div>
+    <div class="session-info">
+      <span class="pill">Room <strong id="room-name">default</strong></span>
+      <span class="pill">You <strong id="self-label">—</strong></span>
+      <span class="pill">Users <strong id="user-count">0</strong></span>
+    </div>
+  </header>
+  <main class="app-main">
+    <section id="topbar" class="toolbar">
+      <div class="tools">
+        <label class="tool-group">Color
+          <input type="color" id="color" value="#000000">
+        </label>
+        <label class="tool-group">Width
+          <input type="range" id="width" min="1" max="40" value="3">
+        </label>
+        <button id="eraser" class="btn">Eraser</button>
+        <button id="undo" class="btn">Undo</button>
+        <button id="redo" class="btn">Redo</button>
+      </div>
+      <div class="user-panel">
+        <span class="label">Active users</span>
+        <span id="user-list">—</span>
+      </div>
+    </section>
+    <section class="canvas-stage">
+      <div class="canvas-wrapper">
+        <canvas id="canvas"></canvas>
+        <div id="cursor-layer"></div>
+      </div>
+    </section>
+  </main>
+  <div id="name-modal" class="modal-backdrop">
+    <form id="name-form" class="modal-card" autocomplete="off">
+      <h2>Join the canvas</h2>
+      <p>Enter your name to start drawing together.</p>
+      <input id="name-input" type="text" name="displayName" placeholder="Your name" maxlength="32" autocomplete="off" spellcheck="false" required>
+      <button type="submit" class="btn primary">Join</button>
+    </form>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/websocket.js"></script>
+  <script src="/canvas.js"></script>
+  <script src="/main.js"></script>
+</body>
+</html>
+
