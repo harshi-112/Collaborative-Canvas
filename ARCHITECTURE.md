@@ -1,139 +1,127 @@
-# ARCHITECTURE — Collaborative Canvas Prototype
+# ARCHITECTURE — Collaborative Canvas Prototype 📐🖌️
 
-This document describes the architecture decisions for the Collaborative Canvas prototype: how drawing events flow, the WebSocket protocol, undo/redo strategy, performance optimizations, and conflict resolution.
+This document explains how the Collaborative Canvas works: data flow, WebSocket protocol, global undo/redo, performance trade-offs, conflict resolution — plus a visual diagram. Emojis and short callouts are used for quick scanning. Keep `ARCHITECTURE_DIAGRAM.png` in the repo root (it is referenced below).
 
-## 1) Data Flow Diagram — drawing events (high level)
+---
 
-Client (pointer) -> Client captures pointer events
-  - stroke_start (new op id, color, width)
-  - stroke_chunk (batched points)
-  - stroke_end (finish op)
+## 🔁 1) High-level data flow — quick overview
 
-Client -> Server
-  - Events are emitted to server via Socket.io
+Client (pointer events) → Server (authoritative) → Other Clients (render)
 
-Server -> Other Clients
-  - Server appends to in-memory ops list, broadcasts stroke_chunk (and start/end)
-  - Other clients render incoming chunks immediately
+- Client emits: `stroke_start`, repeated `stroke_chunk`, `stroke_end`, and `cursor`.
+- Server appends completed strokes into an in-memory ops list and broadcasts chunks to peers.
+- Clients render chunks incrementally while drawing; on reconnect clients request `full_state` and replay ops.
 
-Reconnect / load:
-  - Client -> request_state
-  - Server -> full_state (ops array)
-  - Client replays ops to reconstruct canvas
+ASCII summary:
+Client A → Server → Client B/C  
+Client X → request_state → Server → full_state (ops) → Client X
 
-Simple ASCII diagram:
-Client A  --(stroke_start/chunk/end)-->  Server  --(broadcast chunks)-->  Client B/C
-Client X  --(request_state)------------->  Server  --(full_state: ops)-->  Client X
+---
 
-## Architecture diagram
+## 🖼️ Architecture diagram
 
-Embedded PNG (renders on GitHub/GitLab/Markdown viewers). Place the file `ARCHITECTURE_DIAGRAM.png` in the repository root (same folder as this markdown).
+The repository includes a PNG diagram for visual reference. It renders on GitHub/GitLab and other Markdown viewers.
 
 ![Collaborative Canvas architecture diagram](./ARCHITECTURE_DIAGRAM.png)
 
-Figure: Data flow — client stroke events -> server -> broadcast to peers. Also shows request_state/full_state flow for reconnects.
+Tip: open the image if you prefer a visual walkthrough of events, broadcasts and state requests.
 
-## 2) WebSocket Protocol (messages and payloads)
+---
+
+## 🔌 2) WebSocket protocol — messages & payloads
+
+Core messages (client ↔ server):
 
 - join_room
-  - client -> server: { room: string, name: string }
-  - server validates and returns ack/join metadata
-
+  - client → server: { room: string, name: string }
 - request_state
-  - client -> server: {}
-  - server -> client: { ops: [ op ] }  (full replayable operation list)
-
+  - client → server: {}
+  - server → client: { ops: [ op ] }  // full replayable list
 - full_state
-  - server -> client: { ops: [ op ] }
-
+  - server → client: { ops: [ op ] }
 - stroke_start
-  - client -> server: { id: string, color: string, width: number, tool?: 'pen'|'eraser' }
-
+  - client → server: { id, color, width, tool?: 'pen'|'eraser' }
 - stroke_chunk
-  - client -> server: { id: string, points: [{x:number,y:number}], color?: string, width?: number }
-  - server broadcasts same shape to other clients
-
+  - client → server: { id, points: [{x,y}], color?, width? }
+  - server → broadcast same to peers
 - stroke_end
-  - client -> server: { id: string } (marks op complete on server)
-
-- undo
-  - client -> server: {}
-  - server -> all: { type: 'undo', opId: string }
-
-- redo
-  - client -> server: {}
-  - server -> all: { type: 'redo', op: { id, points, color, width, removed:false } }
-
+  - client → server: { id }  // finalize op
+- undo / redo
+  - client → server: {}
+  - server → all: { type: 'undo'|'redo', opId? | op? }
 - cursor
-  - client -> server: { x:number, y:number, id?:string }
-  - server -> broadcast: { id, x, y, color, name }
+  - client → server: { x, y, id? }
+  - server → broadcast: { id, x, y, color, name }
 
-Notes:
-- Op shape: { id, points: [{x,y}], color, width, removed?: boolean, createdAt?: number }
-- stroke_chunk may arrive multiple times per op; server buffers/appends until stroke_end.
+Op shape (recommended):
+{ id: string, points: [{x,y}], color: string, width: number, removed?: boolean, createdAt?: number }
 
-## 3) Undo / Redo strategy (global operation-based)
+---
 
-- Model: server maintains a linear operation list (ops) and a redo stack.
-- Each completed stroke (after stroke_end) becomes an op with id and accumulated points.
-- Undo:
-  - Server finds the last op where removed !== true, sets op.removed = true, pushes op onto redoStack.
-  - Server broadcasts { type: 'undo', opId }.
-  - Clients mark the op removed and trigger a redraw (or remove that op from visible render).
-- Redo:
-  - Server pops redoStack, sets op.removed = false, re-inserts/retains op, broadcasts { type: 'redo', op }.
-  - Clients reapply the op (append to in-memory list if needed) and render.
-- Rationale:
-  - Global undo/redo keeps behavior consistent for all clients.
-  - Simpler and deterministic compared to per-user undo (avoids ownership/CRDT complexity).
+## 🔄 3) Undo / Redo strategy — global & deterministic
 
-## 4) Performance decisions (why and what)
+Design:
+- Server maintains a linear ops array and a redo stack.
+- Completed strokes become ops; undo marks the most recent non-removed op with `removed = true` and pushes it to redo stack.
+- Redo pops from redo stack and restores `removed = false`.
+- Server broadcasts undo/redo events; clients apply them and trigger a redraw.
 
-- Streamed point batches:
-  - Send small batches of points (stroke_chunk) while drawing so remote clients see strokes in-progress.
-  - Reduces latency and perceived responsiveness.
+Pros ✅: simple, deterministic, easy to reason about across multiple users.  
+Cons ⚠️: not per-user undo — it's global.
 
-- Incremental rendering:
-  - Clients render incoming chunks immediately, avoiding a full redraw on every chunk.
-  - Full redraw is done only on resize, undo/redo, or when applying removals/restores.
+---
 
-- Batching & sizing:
-  - Tune chunk size to balance network throughput and smoothness (e.g., 5–20 points per chunk depending on sampling rate).
+## 🚀 4) Performance decisions — what & why
 
-- Memory-only state (prototype):
-  - Ops are kept in memory for simplicity and replay speed.
-  - For long sessions: recommend snapshots, periodic persistence, or truncation to limit replay cost.
+- Stream small point batches (stroke_chunk) for low-latency live rendering.
+- Incremental rendering on clients — avoid full redraw on every incoming chunk.
+- Tune batch size (e.g., 5–20 points) to balance bandwidth vs smoothness.
+- Keep server hot-path minimal (append/broadcast) to maintain responsiveness.
+- Memory-only ops for the prototype; consider snapshot + delta persistence for production to avoid long replay times.
 
-- Minimizing work on hot path:
-  - Keep server work per event small (append, mark removed, broadcast) to maintain low latency.
+Quick recommendation: if replay becomes slow, add periodic canvas snapshots + op delta trimming.
 
-## 5) Conflict resolution (simultaneous drawing)
+---
 
-- Ordering strategy:
-  - Server serializes events by arrival order (single authoritative source). Operations are ordered by server receipt and/or createdAt timestamp.
-  - Last-write ordering per-server arrival time — deterministic and simple.
+## 🤝 5) Conflict resolution — simultaneous drawing
 
-- Implications:
-  - Concurrent strokes are interleaved by arrival order and both are preserved as separate ops.
-  - No per-stroke merging or CRDT semantics; layering is canvas-order based.
+- Single authoritative server serializes events in arrival order (server-time / FIFO).
+- Concurrent strokes are preserved and layered by arrival order — no CRDT/merge semantics in this prototype.
+- This is deterministic and simple; for richer semantics (per-user undo, intent merging) consider CRDTs or OT (more complex).
 
-- When this may fail:
-  - If per-user local undo/ownership is required, this model is insufficient; consider:
-    - CRDTs/OT for cooperative editing semantics, or
-    - Per-user stacks with merge policies (more complex).
+---
 
-## 6) Improvements / future considerations
+## 🔧 6) Troubleshooting & tips
 
-- Persistence & snapshots: store periodic snapshots and op deltas to speed reconnects and bound memory.
-- Per-user undo: implement ownership metadata + CRDT/OT to support independent local undo.
-- Reliability: acknowledgements for critical messages (start/end) to avoid lost op state.
-- Compression: compress large point batches for lower bandwidth.
-- Sharding/rooms: scale server state per room and add persistence for long-lived rooms.
+- If clients look desynced: refresh one client (triggers `request_state`) or restart server (state in memory only).
+- If stroke chunks are missing: check browser console for Socket.io errors and network packet drops.
+- To test across devices: use the LAN URL printed on server start (server prints both localhost and network IP).
 
-## 7) Implementation notes (quick reminders)
+Server logging helper (recommended):
+- Print both `localhost` and network address at server start so testers can connect via LAN.
 
-- Keep ops immutable where practical (create new op objects when restoring).
-- Use op.removed boolean to avoid reindexing; clients can filter during redraw.
-- Ensure stroke ids are globally unique (UUIDs) to avoid id collisions across clients.
-- Validate sizes/point ranges on server to avoid malformed data impacting replay.
+---
+
+## 📈 7) Improvements / roadmap ideas
+
+- Persistence: snapshots + op deltas for long-lived rooms.
+- Per-user undo using ownership metadata + CRDTs.
+- Message acknowledgements for critical messages (`stroke_start`/`stroke_end`).
+- Compression for point batches to reduce bandwidth.
+- Room sharding and persistence for scale.
+
+---
+
+## 📝 Implementation notes — quick checklist
+
+- Use UUIDs for stroke ids to avoid collisions.
+- Keep ops immutable where practical; use `removed` flag to mark undo.
+- Validate incoming points on server to avoid malformed ops.
+- Only full-redraw on undo/redo or resize to reduce CPU.
+
+---
+
+If you want, I can:
+- update the repo file now and prepare a commit message, or
+- generate a short PR-ready commit sequence (git commands) you can run locally.
 
